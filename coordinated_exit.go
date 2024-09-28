@@ -7,6 +7,7 @@ package coordinated_exit
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -56,6 +57,12 @@ func ExitWithError(e error) {
 	exitReasons = append(exitReasons, e)
 	(&mutex).Unlock()
 	ExitWithoutError()
+}
+
+// A simple wrapper around fmt.Errorf that calls ExitWithError.
+func ExitWithErrorf(format string, args ...any) {
+	e := fmt.Errorf(format, args...)
+	ExitWithError(e)
 }
 
 // To be run in exactly one goroutine. Removes the signal handler and returns
