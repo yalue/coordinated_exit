@@ -11,34 +11,41 @@ import (
 	"os"
 	"os/signal"
 	"sync"
-	"sync/atomic"
 )
 
-var shouldExit atomic.Bool
+var shouldExit bool
 var exitReasons []error
 var signalAlreadyHandled bool
 var exitCond *sync.Cond
 var mutex sync.Mutex
 
+func lock() {
+	(&mutex).Lock()
+}
+
+func unlock() {
+	(&mutex).Unlock()
+}
+
 // Returns true if any routine or prior code as indicated that the program
 // should exit.
 func ShouldExit() bool {
-	return (&shouldExit).Load()
+	return shouldExit
 }
 
 // Returns the error causing the exit, or nil if no errors have been set.
 func ExitReason() error {
-	(&mutex).Lock()
+	lock()
 	if len(exitReasons) == 0 {
-		(&mutex).Unlock()
+		unlock()
 		return nil
 	}
 	if len(exitReasons) == 1 {
-		(&mutex).Unlock()
+		unlock()
 		return exitReasons[0]
 	}
 	e := errors.Join(exitReasons...)
-	(&mutex).Unlock()
+	unlock()
 	return e
 }
 
@@ -46,16 +53,18 @@ func ExitReason() error {
 // WaitForExit() to return. Does not set an error, but won't clear any errors
 // that have already been set by prior calls to ExitWithError().
 func ExitWithoutError() {
-	(&shouldExit).Store(true)
+	lock()
+	shouldExit = true
+	unlock()
 	exitCond.Broadcast()
 }
 
 // Sets the package-wide flag to exit, and adds the given error to the list of
 // exit reasons to be returned by WaitForExit().
 func ExitWithError(e error) {
-	(&mutex).Lock()
+	lock()
 	exitReasons = append(exitReasons, e)
-	(&mutex).Unlock()
+	unlock()
 	ExitWithoutError()
 }
 
@@ -93,16 +102,16 @@ func waitForInterruptRoutine() {
 // signal handler will be removed if ExitWithError() or ExitWithoutError() is
 // called from any other context.
 func ExitOnInterrupt() {
-	(&mutex).Lock()
+	lock()
 	if signalAlreadyHandled {
 		// We already have a goroutine waiting for the interrupt.
-		(&mutex).Unlock()
+		unlock()
 		return
 	}
 
 	go waitForInterruptRoutine()
 	signalAlreadyHandled = true
-	(&mutex).Unlock()
+	unlock()
 }
 
 // Blocks until one of the following has occurred:
@@ -117,7 +126,7 @@ func ExitOnInterrupt() {
 // this will use errors.Join to combine them.
 func WaitForExit() error {
 	exitCond.L.Lock()
-	for !(&shouldExit).Load() {
+	for !shouldExit {
 		exitCond.Wait()
 	}
 	exitCond.L.Unlock()
