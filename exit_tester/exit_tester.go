@@ -50,6 +50,9 @@ func main() {
 	} else {
 		fmt.Printf("WaitForExit() returned no error.\n")
 	}
+
+	// Give us a little more time to press Ctrl+C a second time to make sure
+	// that the handler has been removed.
 	fmt.Printf("Sleeping 10 more seconds...\n")
 	time.Sleep(10 * time.Second)
 	fmt.Printf("All done!\n")

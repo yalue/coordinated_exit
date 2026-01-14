@@ -27,7 +27,7 @@ func unlock() {
 	(&mutex).Unlock()
 }
 
-// Returns true if any routine or prior code as indicated that the program
+// Returns true if any routine or prior code has indicated that the program
 // should exit.
 func ShouldExit() bool {
 	return shouldExit
